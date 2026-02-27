@@ -1,0 +1,29 @@
+{
+  "name": "reading-nook-extension",
+  "description": "A cozy Chrome extension that helps you save, remember, and actually read the interesting things you find online.",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "wxt build && playwright test",
+    "test:all": "bun run test && bun run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/bun": "latest",
+    "@wxt-dev/module-svelte": "^2.0.4",
+    "svelte": "^5.53.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "wxt": "^0.20.18"
+  }
+}

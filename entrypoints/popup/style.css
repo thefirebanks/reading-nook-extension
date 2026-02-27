@@ -1,0 +1,94 @@
+/* ─── Popup Global Styles ────────────────────────────────────── */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --rn-bg: #FFF8F0;
+  --rn-bg-secondary: #FFF1E3;
+  --rn-bg-card: #FFFFFF;
+  --rn-text: #3D2C1E;
+  --rn-text-secondary: #8B7355;
+  --rn-text-muted: #B8A48E;
+  --rn-accent: #C4704B;
+  --rn-accent-hover: #B5613D;
+  --rn-accent-light: #F5DDD0;
+  --rn-success: #7B9E6B;
+  --rn-success-light: #E8F0E4;
+  --rn-warning: #D4A843;
+  --rn-warning-light: #FDF3D7;
+  --rn-danger: #C9544D;
+  --rn-shadow: rgba(61, 44, 30, 0.08);
+  --rn-shadow-hover: rgba(61, 44, 30, 0.14);
+  --rn-border: rgba(61, 44, 30, 0.08);
+  --rn-radius: 12px;
+  --rn-radius-sm: 8px;
+  --rn-radius-xs: 6px;
+  --rn-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --rn-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  width: 380px;
+  min-height: 500px;
+  max-height: 600px;
+  background: var(--rn-bg);
+  color: var(--rn-text);
+  font-family: var(--rn-font);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rn-text-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rn-text-secondary);
+}
+
+/* ─── Buttons ──────────────────────────────────────────────────── */
+
+button {
+  font-family: var(--rn-font);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--rn-accent);
+  outline-offset: 2px;
+  border-radius: var(--rn-radius-xs);
+}
+
+/* ─── Utility ──────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
