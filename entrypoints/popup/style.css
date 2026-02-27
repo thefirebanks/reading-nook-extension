@@ -27,8 +27,11 @@
   --rn-radius: 12px;
   --rn-radius-sm: 8px;
   --rn-radius-xs: 6px;
-  --rn-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --rn-font: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rn-font-display: 'DM Serif Display', Georgia, serif;
   --rn-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --rn-transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --rn-transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {

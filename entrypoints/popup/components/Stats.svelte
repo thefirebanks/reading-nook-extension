@@ -31,10 +31,14 @@
     </div>
   {:else}
     <!-- Streak Section -->
-    <section class="stats-section">
+    <section class="stats-section" style="animation-delay: 0ms">
       <div class="streak-card">
         <div class="streak-number">
-          <span class="streak-fire">🔥</span>
+          <span class="streak-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 23c-4.97 0-9-3.58-9-8 0-3.07 2.31-6.64 4.5-9 .37-.4 1.03-.08.96.45-.27 2.07.67 4.05 1.54 5.05.13.15.37.07.4-.12.5-3.08 3.07-5.89 4.6-7.13.31-.25.75.02.7.41-.3 2.5.6 5.2 2.3 7.34 1.2 1.5 2 3.37 2 5C20 19.42 16.97 23 12 23z"/>
+            </svg>
+          </span>
           <span class="streak-value">{stats.currentStreak}</span>
           <span class="streak-label">day streak</span>
         </div>
@@ -46,7 +50,7 @@
     </section>
 
     <!-- Overview Numbers -->
-    <section class="stats-section">
+    <section class="stats-section" style="animation-delay: 60ms">
       <h2 class="section-title">Overview</h2>
       <div class="stats-grid">
         <div class="stat-box">
@@ -54,11 +58,11 @@
           <span class="stat-label">Saved</span>
         </div>
         <div class="stat-box">
-          <span class="stat-value">{stats.totalRead}</span>
+          <span class="stat-value stat-value-success">{stats.totalRead}</span>
           <span class="stat-label">Read</span>
         </div>
         <div class="stat-box">
-          <span class="stat-value">
+          <span class="stat-value stat-value-warm">
             {stats.totalSaved > 0
               ? Math.round((stats.totalRead / stats.totalSaved) * 100)
               : 0}%
@@ -70,7 +74,7 @@
 
     <!-- Weekly Digest -->
     {#if latestWeek}
-      <section class="stats-section">
+      <section class="stats-section" style="animation-delay: 120ms">
         <h2 class="section-title">This Week</h2>
         <div class="digest-card">
           <div class="digest-row">
@@ -83,9 +87,9 @@
           </div>
           {#if latestWeek.reflections.length > 0}
             <div class="digest-reflections">
-              <span class="digest-label">Takeaways:</span>
+              <span class="digest-label">Takeaways</span>
               {#each latestWeek.reflections as reflection}
-                <p class="digest-quote">"{reflection}"</p>
+                <p class="digest-quote">&ldquo;{reflection}&rdquo;</p>
               {/each}
             </div>
           {/if}
@@ -95,12 +99,18 @@
 
     <!-- Categories Breakdown -->
     {#if categories.size > 0}
-      <section class="stats-section">
+      <section class="stats-section" style="animation-delay: 180ms">
         <h2 class="section-title">Your Interests</h2>
         <div class="categories-list">
           {#each [...categories.entries()] as [category, catItems]}
             <div class="category-row">
               <span class="category-name">{category}</span>
+              <div class="category-bar-wrap">
+                <div
+                  class="category-bar"
+                  style="width: {Math.min(100, (catItems.length / items.length) * 100 * 3)}%"
+                ></div>
+              </div>
               <span class="category-count">{catItems.length}</span>
             </div>
           {/each}
@@ -112,19 +122,25 @@
 
 <style>
   .stats-page {
-    padding: 8px 0;
+    padding: 4px 0;
   }
 
   .stats-section {
     padding: 8px 16px 16px;
+    animation: sectionFadeIn 0.35s ease both;
+  }
+
+  @keyframes sectionFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .section-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--rn-text-secondary);
+    color: var(--rn-text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
     margin-bottom: 10px;
   }
 
@@ -145,14 +161,18 @@
     margin-bottom: 6px;
   }
 
-  .streak-fire {
-    font-size: 24px;
+  .streak-icon {
+    color: var(--rn-warning);
+    display: flex;
+    align-items: center;
+    align-self: center;
   }
 
   .streak-value {
     font-size: 36px;
     font-weight: 700;
     color: var(--rn-text);
+    letter-spacing: -0.02em;
   }
 
   .streak-label {
@@ -184,22 +204,38 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px 8px;
+    padding: 14px 8px;
     background: var(--rn-bg-card);
-    border-radius: var(--rn-radius-sm);
-    border: 1px solid var(--rn-border);
+    border-radius: var(--rn-radius);
+    border: 1.5px solid var(--rn-border);
+    transition: all var(--rn-transition);
+  }
+
+  .stat-box:hover {
+    border-color: var(--rn-accent-light);
+    transform: translateY(-1px);
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--rn-accent);
+    letter-spacing: -0.02em;
+  }
+
+  .stat-value-success {
+    color: var(--rn-success);
+  }
+
+  .stat-value-warm {
+    color: var(--rn-warning);
   }
 
   .stat-label {
     font-size: 11px;
     color: var(--rn-text-muted);
     margin-top: 2px;
+    font-weight: 500;
   }
 
   /* ─── Digest ───────────────────────────────────────────────── */
@@ -207,14 +243,14 @@
   .digest-card {
     padding: 12px;
     background: var(--rn-bg-card);
-    border-radius: var(--rn-radius-sm);
-    border: 1px solid var(--rn-border);
+    border-radius: var(--rn-radius);
+    border: 1.5px solid var(--rn-border);
   }
 
   .digest-row {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
+    padding: 8px 0;
     font-size: 13px;
     border-bottom: 1px solid var(--rn-border);
   }
@@ -223,14 +259,24 @@
     border-bottom: none;
   }
 
+  .digest-row span {
+    color: var(--rn-text-secondary);
+  }
+
+  .digest-row strong {
+    color: var(--rn-text);
+  }
+
   .digest-reflections {
     padding-top: 8px;
   }
 
   .digest-label {
     font-size: 11px;
-    color: var(--rn-text-secondary);
-    font-weight: 500;
+    color: var(--rn-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
   }
 
   .digest-quote {
@@ -238,6 +284,7 @@
     font-style: italic;
     color: var(--rn-text);
     padding: 4px 0;
+    line-height: 1.5;
   }
 
   /* ─── Categories ───────────────────────────────────────────── */
@@ -250,18 +297,42 @@
 
   .category-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     background: var(--rn-bg-card);
-    border-radius: var(--rn-radius-xs);
+    border-radius: var(--rn-radius-sm);
     border: 1px solid var(--rn-border);
+    transition: all var(--rn-transition);
+  }
+
+  .category-row:hover {
+    border-color: var(--rn-accent-light);
   }
 
   .category-name {
     font-size: 12px;
     font-weight: 500;
     color: var(--rn-text);
+    white-space: nowrap;
+    min-width: 100px;
+  }
+
+  .category-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--rn-bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .category-bar {
+    height: 100%;
+    background: var(--rn-accent);
+    border-radius: 2px;
+    min-width: 4px;
+    transition: width 0.5s ease;
+    opacity: 0.6;
   }
 
   .category-count {
@@ -271,6 +342,8 @@
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;
+    min-width: 20px;
+    text-align: center;
   }
 
   .empty-state {

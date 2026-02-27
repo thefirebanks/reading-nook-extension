@@ -58,7 +58,7 @@ test.describe('Reader (Focus Mode)', () => {
     await expect(toolbar).toBeVisible();
 
     // Click Hide button
-    const hideBtn = readerPage.locator('button', { hasText: 'Hide' });
+    const hideBtn = readerPage.locator('button.btn-hide');
     await hideBtn.click();
 
     // Toolbar should be hidden, show button should appear

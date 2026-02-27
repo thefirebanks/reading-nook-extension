@@ -6,6 +6,7 @@
   let saving = $state(false);
   let confirmMessage = $state('');
   let showConfirm = $state(false);
+  let toastExiting = $state(false);
   let hovered = $state(false);
 
   async function handleSave() {
@@ -30,10 +31,15 @@
       saved = true;
       confirmMessage = getSaveConfirmation();
       showConfirm = true;
+      toastExiting = false;
 
       setTimeout(() => {
-        showConfirm = false;
-      }, 2500);
+        toastExiting = true;
+        setTimeout(() => {
+          showConfirm = false;
+          toastExiting = false;
+        }, 300);
+      }, 2200);
     } catch (err) {
       console.error('Reading Nook: Failed to save page', err);
     } finally {
@@ -62,8 +68,12 @@
 <div class="reading-nook-container">
   <!-- Confirmation toast -->
   {#if showConfirm}
-    <div class="rn-toast" class:rn-toast-visible={showConfirm}>
-      <span class="rn-toast-icon">📚</span>
+    <div class="rn-toast" class:rn-toast-visible={showConfirm && !toastExiting} class:rn-toast-exit={toastExiting}>
+      <span class="rn-toast-check" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </span>
       <span class="rn-toast-text">{confirmMessage}</span>
     </div>
   {/if}
@@ -83,9 +93,18 @@
     {#if saving}
       <span class="rn-spinner"></span>
     {:else if saved}
-      <span class="rn-icon">✓</span>
+      <span class="rn-icon-check" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </span>
     {:else}
-      <span class="rn-icon">📖</span>
+      <span class="rn-icon-book" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      </span>
     {/if}
 
     {#if hovered && !saving}

@@ -12,5 +12,5 @@
   --rn-border: rgba(61, 44, 30, 0.08);
   --rn-radius: 12px;
   --rn-radius-sm: 8px;
-  --rn-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --rn-font: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }

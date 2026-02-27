@@ -1,111 +1,79 @@
 ---
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
+description: Reading Nook Chrome extension — WXT + Svelte 5 + TypeScript project conventions
+globs: "**/*.{ts,svelte,html,css,js}"
+alwaysApply: true
 ---
 
-Default to using Bun instead of Node.js.
+# Reading Nook Extension
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
+## Project Overview
 
-## APIs
+Chrome extension ("Reading Nook") for saving pages to read later, with focus mode, reflections, streaks, and gentle nudge reminders. Built with WXT framework + Svelte 5 + TypeScript (Manifest V3).
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+## Commands
+
+- `bun install` — install dependencies
+- `bun run dev` — start WXT dev server with hot reload
+- `bun run build` — production build to `.output/chrome-mv3/`
+- `bun run test` — run Vitest unit tests (117 tests)
+- `bun run build && bunx playwright test` — run E2E tests (18 tests, must build first)
+- `bun run zip` — package extension for distribution
+
+## Package Manager
+
+Always use `bun`, never npm/pnpm/yarn.
+
+## Framework: WXT
+
+- WXT uses file-based entrypoint discovery in `entrypoints/` directory
+- Each entrypoint folder must have an `index.ts` (or `index.html` for pages)
+- Content scripts use `defineContentScript()` with `createShadowRootUi` for style isolation
+- Background uses `defineBackground()` 
+- Build output: `.output/chrome-mv3/` (production) or `.output/chrome-mv3-dev/` (dev)
+- Run `bunx wxt prepare` to generate types if `chrome` global shows LSP errors
+
+## UI Framework: Svelte 5
+
+- Uses runes syntax: `$state()`, `$derived()`, `$props()`, `$bindable()`
+- Mount/unmount via `mount`/`unmount` from `'svelte'`
+- `{@const}` declarations must be immediate children of control flow blocks (`{#if}`, `{#each}`, etc.)
+- Content script UIs use shadow root — Google Fonts can't load there, use system font fallbacks
+
+## Design System
+
+- Background: `#FFF8F0` (cream), Accent: `#C4704B` (terracotta), Success: `#7B9E6B` (sage green)
+- Fonts: DM Sans (body) + DM Serif Display (headings) — loaded via Google Fonts `<link>` in HTML files
+- Border radius: 12px, soft warm shadows
+- All icons are inline SVGs — no emoji in UI components
+- CSS variables: `--rn-bg`, `--rn-accent`, `--rn-success`, `--rn-font-display`, `--rn-transition-spring`, `--rn-transition-smooth`
+- Tone: warm, playful microcopy ("Your nook is empty — go find something fascinating!")
+
+## Architecture
+
+| Entrypoint | Purpose |
+|---|---|
+| `entrypoints/background/` | Service worker: messages, alarms, tab monitoring, focus mode, distraction blocking |
+| `entrypoints/save-button.content/` | Content script: floating save button + metadata extraction |
+| `entrypoints/popup/` | Main popup UI with 3 tabs: Queue, Read, Stats |
+| `entrypoints/reader/` | Focus mode page: iframe + timer toolbar |
+| `entrypoints/reflection/` | Post-reading reflection form |
+
+## Data Model
+
+- Types in `lib/types.ts`: `ReadingItem`, `Reflection`, `UserStats`, `WeekSummary`, `UserSettings`
+- Storage: `chrome.storage.local` for items/stats (5MB), `chrome.storage.sync` for settings (100KB)
+- CRUD operations in `lib/storage.ts`
 
 ## Testing
 
-Use `bun test` to run tests.
+- Unit tests in `tests/` use Vitest with chrome.storage mocking
+- E2E tests in `e2e/` use Playwright with headful Chrome (`headless: false`) and `launchPersistentContext` with `--load-extension`
+- E2E fixture in `e2e/fixtures.ts` handles extension loading
+- Use `import.meta.url` with `fileURLToPath` (not `__dirname` — ESM project)
 
-```ts#index.test.ts
-import { test, expect } from "bun:test";
+## Key Gotchas
 
-test("hello world", () => {
-  expect(1).toBe(1);
-});
-```
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-
-// import .css files directly and it works
-import './index.css';
-
-import { createRoot } from "react-dom/client";
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+- Content script CSS injection mode must be `'ui'` for shadow root
+- `chrome` type errors in editor are normal until `wxt prepare` runs
+- Distraction blocking uses `chrome.declarativeNetRequest` with `declarative_net_request` permission in manifest
+- Build is ~155KB total, builds in ~1 second
