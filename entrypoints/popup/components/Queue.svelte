@@ -1,37 +1,51 @@
 <script lang="ts">
   import type { ReadingItem } from '../../../lib/types';
   import { getEmptyQueueMessage } from '../../../lib/utils';
+  import { sendMessage } from '../../../lib/messaging';
   import ItemCard from './ItemCard.svelte';
 
   let {
     items,
     onStartSession,
+    sessionError = '',
+    decayDays = 30,
+    onDismiss,
   }: {
     items: ReadingItem[];
     onStartSession: () => void;
+    sessionError?: string;
+    decayDays?: number;
+    onDismiss?: (item: ReadingItem) => void;
   } = $props();
 
   let emptyMessage = $state(getEmptyQueueMessage());
 
   async function handleOpenFocus(item: ReadingItem) {
-    await chrome.runtime.sendMessage({
-      type: 'OPEN_FOCUS_MODE',
-      payload: { id: item.id },
-    });
+    try {
+      await sendMessage('OPEN_FOCUS_MODE', { id: item.id });
+    } catch (err) {
+      console.error('Failed to open focus mode:', err);
+    }
   }
 
   async function handleArchive(item: ReadingItem) {
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_ITEM',
-      payload: { id: item.id, status: 'archived' },
-    });
+    try {
+      await sendMessage('UPDATE_ITEM', { id: item.id, status: 'archived' });
+    } catch (err) {
+      console.error('Failed to archive item:', err);
+    }
   }
 
-  async function handleDelete(item: ReadingItem) {
-    await chrome.runtime.sendMessage({
-      type: 'DELETE_ITEM',
-      payload: { id: item.id },
-    });
+  async function handleDismiss(item: ReadingItem) {
+    if (onDismiss) {
+      onDismiss(item);
+      return;
+    }
+    try {
+      await sendMessage('DELETE_ITEM', { id: item.id });
+    } catch (err) {
+      console.error('Failed to dismiss item:', err);
+    }
   }
 </script>
 
@@ -75,6 +89,9 @@
           </svg>
         </span>
       </button>
+      {#if sessionError}
+        <p class="session-error">{sessionError}</p>
+      {/if}
     {/if}
 
     <!-- Item list -->
@@ -83,9 +100,10 @@
         <ItemCard
           {item}
           index={i}
+          {decayDays}
           onOpenFocus={handleOpenFocus}
           onArchive={handleArchive}
-          onDelete={handleDelete}
+          onDismiss={handleDismiss}
         />
       {/each}
     </div>
@@ -231,6 +249,17 @@
   .session-cta:hover .session-arrow {
     color: var(--rn-accent);
     transform: translateX(2px);
+  }
+
+  .session-error {
+    margin: 0 16px 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--rn-danger, #C9544D);
+    background: rgba(201, 84, 77, 0.06);
+    border-radius: 8px;
+    text-align: center;
+    animation: fadeUp 0.2s ease;
   }
 
   /* ─── Footer ───────────────────────────────────────────────── */

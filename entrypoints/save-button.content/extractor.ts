@@ -41,8 +41,24 @@ export function extractPageMetadata(): PageMetadata {
 
   // Estimated read time from word count
   const wordCount = countWords();
-  const estimatedReadTime =
-    contentType === 'video' ? undefined : estimateReadTime(wordCount);
+  let estimatedReadTime: number | undefined;
+
+  if (contentType === 'video') {
+    // Videos don't have a word-based read time
+    estimatedReadTime = undefined;
+  } else if (contentType === 'paper') {
+    // Papers (arxiv, etc.) — the abstract page has very few visible words,
+    // but the actual paper is much longer. Use a sensible default range
+    // based on academic paper norms (15-30 min) unless we extracted a
+    // substantial word count (> 2000 words means we likely got the full text).
+    if (wordCount > 2000) {
+      estimatedReadTime = estimateReadTime(wordCount);
+    } else {
+      estimatedReadTime = 20; // ~20 min is a reasonable default for papers
+    }
+  } else {
+    estimatedReadTime = wordCount > 0 ? estimateReadTime(wordCount) : undefined;
+  }
 
   return {
     url,

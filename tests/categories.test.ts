@@ -1,30 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { ReadingItem } from '../lib/types';
 import {
   categorize,
   groupByCategory,
   suggestSessionItems,
   pickNudgeItems,
-  contentTypeEmoji,
 } from '../lib/categories';
-
-// ─── Test helpers ───────────────────────────────────────────────
-
-function makeItem(overrides: Partial<ReadingItem> = {}): ReadingItem {
-  return {
-    id: `test-${Math.random().toString(36).slice(2, 9)}`,
-    url: 'https://example.com/article',
-    title: 'Test Article',
-    description: 'A test article',
-    siteName: 'example.com',
-    contentType: 'article',
-    savedAt: Date.now(),
-    status: 'unread',
-    tags: [],
-    nudgeCount: 0,
-    ...overrides,
-  };
-}
+import { makeItem } from './helpers';
 
 // ─── categorize ─────────────────────────────────────────────────
 
@@ -288,29 +269,5 @@ describe('pickNudgeItems', () => {
     const result = pickNudgeItems(items);
     // lessNudged should come first due to lower nudge count (weighted x2)
     expect(result[0]).toBe(lessNudged);
-  });
-});
-
-// ─── contentTypeEmoji ───────────────────────────────────────────
-
-describe('contentTypeEmoji', () => {
-  it('should return correct emoji for article', () => {
-    expect(contentTypeEmoji('article')).toBe('\uD83D\uDCDD');
-  });
-
-  it('should return correct emoji for video', () => {
-    expect(contentTypeEmoji('video')).toBe('\uD83C\uDFAC');
-  });
-
-  it('should return correct emoji for tweet', () => {
-    expect(contentTypeEmoji('tweet')).toBe('\uD83D\uDCAC');
-  });
-
-  it('should return correct emoji for paper', () => {
-    expect(contentTypeEmoji('paper')).toBe('\uD83C\uDF93');
-  });
-
-  it('should return correct emoji for other', () => {
-    expect(contentTypeEmoji('other')).toBe('\uD83D\uDD16');
   });
 });

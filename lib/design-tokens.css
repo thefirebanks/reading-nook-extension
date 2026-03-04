@@ -1,0 +1,48 @@
+/* ─── Reading Nook Design Tokens ─────────────────────────────────
+ * Single source of truth for the design system.
+ * Import this file wherever CSS variables are needed.
+ * ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Backgrounds */
+  --rn-bg: #FFF8F0;
+  --rn-bg-secondary: #FFF1E3;
+  --rn-bg-card: #FFFFFF;
+  --rn-bg-hover: #FFF1E3;
+
+  /* Text */
+  --rn-text: #3D2C1E;
+  --rn-text-secondary: #8B7355;
+  --rn-text-muted: #B8A48E;
+
+  /* Accent (terracotta) */
+  --rn-accent: #C4704B;
+  --rn-accent-hover: #B5613D;
+  --rn-accent-light: #F5DDD0;
+
+  /* Semantic colors */
+  --rn-success: #7B9E6B;
+  --rn-success-light: #E8F0E4;
+  --rn-warning: #D4A843;
+  --rn-warning-light: #FDF3D7;
+  --rn-danger: #C9544D;
+
+  /* Shadows & borders */
+  --rn-shadow: rgba(61, 44, 30, 0.08);
+  --rn-shadow-hover: rgba(61, 44, 30, 0.14);
+  --rn-border: rgba(61, 44, 30, 0.08);
+
+  /* Radii */
+  --rn-radius: 12px;
+  --rn-radius-sm: 8px;
+  --rn-radius-xs: 6px;
+
+  /* Typography */
+  --rn-font: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rn-font-display: 'DM Serif Display', Georgia, serif;
+
+  /* Transitions */
+  --rn-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --rn-transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --rn-transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

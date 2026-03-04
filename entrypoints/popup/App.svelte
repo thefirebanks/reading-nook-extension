@@ -3,7 +3,9 @@
   import ReadList from './components/ReadList.svelte';
   import Stats from './components/Stats.svelte';
   import Search from './components/Search.svelte';
-  import type { ReadingItem, UserStats } from '../../lib/types';
+  import Settings from './components/Settings.svelte';
+  import { sendMessage } from '../../lib/messaging';
+  import type { ReadingItem, UserStats, UserSettings } from '../../lib/types';
 
   type Tab = 'queue' | 'read' | 'stats';
   const TABS: Tab[] = ['queue', 'read', 'stats'];
@@ -12,6 +14,7 @@
   let prevTab = $state<Tab>('queue');
   let items = $state<ReadingItem[]>([]);
   let stats = $state<UserStats | null>(null);
+  let settings = $state<UserSettings | null>(null);
   let searchQuery = $state('');
   let loading = $state(true);
   let contentVisible = $state(true);
@@ -30,12 +33,14 @@
 
   async function loadData() {
     try {
-      const [itemsRes, statsRes] = await Promise.all([
-        chrome.runtime.sendMessage({ type: 'GET_ITEMS' }),
-        chrome.runtime.sendMessage({ type: 'GET_STATS' }),
+      const [itemsRes, statsRes, settingsRes] = await Promise.all([
+        sendMessage<{ items: ReadingItem[] }>('GET_ITEMS'),
+        sendMessage<{ stats: UserStats }>('GET_STATS'),
+        sendMessage<{ settings: UserSettings }>('GET_SETTINGS'),
       ]);
       items = itemsRes?.items ?? [];
       stats = statsRes?.stats ?? null;
+      settings = settingsRes?.settings ?? null;
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -46,10 +51,27 @@
   // Load data on mount
   loadData();
 
-  // Listen for storage changes to keep UI in sync
-  chrome.storage.onChanged.addListener(() => {
-    loadData();
-  });
+  // Listen for storage changes to keep UI in sync (debounced, filtered to relevant keys)
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const RELEVANT_KEYS = ['reading_items', 'reading_stats', 'user_settings'];
+
+  const storageListener = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    area: string,
+  ) => {
+    // Only react to local storage changes on keys we care about
+    if (area !== 'local') return;
+    const hasRelevant = Object.keys(changes).some((k) =>
+      RELEVANT_KEYS.includes(k),
+    );
+    if (!hasRelevant) return;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      loadData();
+    }, 100);
+  };
+  chrome.storage.onChanged.addListener(storageListener);
 
   let filteredItems = $derived(
     searchQuery
@@ -58,7 +80,8 @@
             i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             i.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
             i.siteName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (i.category?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false),
+            (i.category?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+            i.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())),
         )
       : items,
   );
@@ -69,16 +92,86 @@
 
   let readCount = $derived(items.filter((i) => i.status === 'read').length);
 
+  let sessionError = $state('');
+  let showSettings = $state(false);
+
+  // ─── Undo Delete ──────────────────────────────────────────────
+  interface PendingDelete {
+    item: ReadingItem;
+    timer: ReturnType<typeof setTimeout>;
+    action: 'delete' | 'archive';
+  }
+  let pendingDelete = $state<PendingDelete | null>(null);
+
+  function scheduleDelete(item: ReadingItem, action: 'delete' | 'archive') {
+    // Cancel any existing pending delete
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timer);
+      executeDelete(pendingDelete);
+    }
+
+    const timer = setTimeout(() => {
+      if (pendingDelete) {
+        executeDelete(pendingDelete);
+        pendingDelete = null;
+      }
+    }, 4000);
+
+    pendingDelete = { item, timer, action };
+    // Optimistically remove from local list so UI updates immediately
+    items = items.filter((i) => i.id !== item.id);
+  }
+
+  async function executeDelete(pd: PendingDelete) {
+    try {
+      if (pd.action === 'delete') {
+        await sendMessage('DELETE_ITEM', { id: pd.item.id });
+      } else {
+        await sendMessage('UPDATE_ITEM', { id: pd.item.id, status: 'archived' });
+      }
+    } catch (err) {
+      console.error('Failed to execute delete:', err);
+    }
+  }
+
+  function undoDelete() {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timer);
+    // Re-add the item to the local list
+    items = [...items, pendingDelete.item];
+    pendingDelete = null;
+  }
+
+  async function handleRestore(item: ReadingItem) {
+    try {
+      await sendMessage('UPDATE_ITEM', { id: item.id, status: 'unread' });
+    } catch (err) {
+      console.error('Failed to restore item:', err);
+    }
+  }
+
+  function handlePermanentDelete(item: ReadingItem) {
+    scheduleDelete(item, 'delete');
+  }
+
+  function handleDismiss(item: ReadingItem) {
+    scheduleDelete(item, 'delete');
+  }
+
   async function handleStartSession() {
-    const response = await chrome.runtime.sendMessage({
-      type: 'START_SESSION',
-    });
-    if (response?.items?.length > 0) {
-      // Open the first item in focus mode
-      await chrome.runtime.sendMessage({
-        type: 'OPEN_FOCUS_MODE',
-        payload: { id: response.items[0].id },
-      });
+    sessionError = '';
+    try {
+      const response = await sendMessage<{ items: ReadingItem[] }>('START_SESSION');
+      if (response?.items?.length > 0) {
+        await sendMessage('OPEN_FOCUS_MODE', { id: response.items[0]!.id });
+      } else {
+        sessionError = 'No unread items to start a session with.';
+        setTimeout(() => (sessionError = ''), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to start session:', err);
+      sessionError = 'Something went wrong. Try again?';
+      setTimeout(() => (sessionError = ''), 3000);
     }
   }
 </script>
@@ -107,6 +200,12 @@
           {stats.currentStreak}
         </div>
       {/if}
+      <button class="gear-btn" onclick={() => (showSettings = true)} title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
 
     <!-- Search -->
@@ -179,13 +278,32 @@
       <Queue
         items={filteredItems.filter((i) => i.status === 'unread' || i.status === 'reading')}
         onStartSession={handleStartSession}
+        {sessionError}
+        decayDays={settings?.decayDays ?? 30}
+        onDismiss={handleDismiss}
       />
     {:else if activeTab === 'read'}
-      <ReadList items={filteredItems.filter((i) => i.status === 'read')} />
+      <ReadList
+        items={filteredItems.filter((i) => i.status === 'read')}
+        archivedItems={filteredItems.filter((i) => i.status === 'archived')}
+        onRestore={handleRestore}
+        onDelete={handlePermanentDelete}
+      />
     {:else if activeTab === 'stats'}
       <Stats {stats} {items} />
     {/if}
   </main>
+
+  {#if pendingDelete}
+    <div class="undo-toast" role="alert">
+      <span class="undo-toast-text">Item removed</span>
+      <button class="undo-toast-btn" onclick={undoDelete}>Undo</button>
+    </div>
+  {/if}
+
+  {#if showSettings}
+    <Settings onClose={() => (showSettings = false)} />
+  {/if}
 </div>
 
 <style>
@@ -193,6 +311,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    position: relative;
     animation: fadeInPage 0.3s ease;
   }
 
@@ -211,7 +330,7 @@
   .header-top {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
   }
 
@@ -224,6 +343,7 @@
     font-weight: 400;
     color: var(--rn-text);
     letter-spacing: -0.01em;
+    flex: 1;
   }
 
   .logo-icon {
@@ -249,6 +369,20 @@
     display: flex;
     align-items: center;
     color: var(--rn-warning);
+  }
+
+  .gear-btn {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    border-radius: var(--rn-radius-xs, 6px);
+    color: var(--rn-text-muted);
+    transition: all var(--rn-transition);
+  }
+
+  .gear-btn:hover {
+    color: var(--rn-text);
+    background: var(--rn-bg-secondary);
   }
 
   /* ─── Tabs ───────────────────────────────────────────────────── */
@@ -405,5 +539,53 @@
   @keyframes shimmer {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
+  }
+
+  /* ─── Undo Toast ─────────────────────────────────────────────── */
+
+  .undo-toast {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--rn-text, #3D2E22);
+    color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    z-index: 90;
+    animation: toastSlideUp 0.25s ease;
+  }
+
+  @keyframes toastSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .undo-toast-text {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .undo-toast-btn {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--rn-accent-light, #F5D5C0);
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: all var(--rn-transition);
+  }
+
+  .undo-toast-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 </style>

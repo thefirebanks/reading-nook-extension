@@ -5,18 +5,34 @@
   let {
     item,
     index = 0,
+    decayDays = 30,
     onOpenFocus,
     onArchive,
-    onDelete,
+    onDismiss,
   }: {
     item: ReadingItem;
     index?: number;
+    decayDays?: number;
     onOpenFocus: (item: ReadingItem) => void;
     onArchive: (item: ReadingItem) => void;
-    onDelete: (item: ReadingItem) => void;
+    onDismiss?: (item: ReadingItem) => void;
   } = $props();
 
   let showActions = $state(false);
+
+  /** Fraction of decayDays elapsed (0 = just saved, 1 = at decay threshold) */
+  let stalenessRatio = $derived(
+    (Date.now() - item.savedAt) / (decayDays * 24 * 60 * 60 * 1000),
+  );
+
+  /** Staleness label shown when item is getting old */
+  let stalenessLabel = $derived(
+    stalenessRatio >= 1.0
+      ? 'Getting dusty'
+      : stalenessRatio >= 0.75
+        ? 'Aging'
+        : null,
+  );
 
   function contentTypeLabel(type: string): string {
     switch (type) {
@@ -58,12 +74,16 @@
         <span class="item-dot">&middot;</span>
         <span class="item-category">{item.category}</span>
       {/if}
+      {#if stalenessLabel}
+        <span class="item-dot">&middot;</span>
+        <span class="item-stale" class:item-stale-dusty={stalenessRatio >= 1.0}>{stalenessLabel}</span>
+      {/if}
     </div>
 
     <h3 class="item-title">
-      <button class="item-title-btn" onclick={() => onOpenFocus(item)}>
+      <a class="item-title-link" href={item.url} target="_blank" rel="noopener">
         {truncate(item.title, 80)}
-      </button>
+      </a>
     </h3>
 
     {#if item.description}
@@ -94,8 +114,8 @@
         </button>
         <button
           class="action-btn action-delete"
-          onclick={() => onDelete(item)}
-          title="Remove"
+          onclick={() => onDismiss ? onDismiss(item) : onArchive(item)}
+          title="Dismiss"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -208,6 +228,16 @@
     font-weight: 500;
   }
 
+  .item-stale {
+    color: var(--rn-warning, #D4A036);
+    font-weight: 500;
+    font-size: 10px;
+  }
+
+  .item-stale-dusty {
+    color: var(--rn-danger, #C9544D);
+  }
+
   .item-title {
     font-size: 13px;
     font-weight: 600;
@@ -215,17 +245,18 @@
     margin-bottom: 2px;
   }
 
-  .item-title-btn {
+  .item-title-link {
     text-align: left;
     font-weight: inherit;
     font-size: inherit;
     line-height: inherit;
     color: var(--rn-text);
+    text-decoration: none;
     padding: 0;
     transition: color var(--rn-transition);
   }
 
-  .item-title-btn:hover {
+  .item-title-link:hover {
     color: var(--rn-accent);
   }
 
@@ -263,6 +294,15 @@
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+  }
+
+  /* Touch devices: always show actions since there's no hover */
+  @media (hover: none) {
+    .item-actions {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
   }
 
   .action-btn {

@@ -181,7 +181,7 @@ describe('formatReadTime', () => {
   });
 
   it('should return "< 1 min" for zero', () => {
-    expect(formatReadTime(0)).toBe('');
+    expect(formatReadTime(0)).toBe('< 1 min');
   });
 
   it('should return "1 min read" for 1', () => {

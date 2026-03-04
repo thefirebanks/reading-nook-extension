@@ -11,8 +11,15 @@ export function generateId(): string {
  * Detect content type from URL and page metadata
  */
 export function detectContentType(url: string): ContentType {
-  const hostname = new URL(url).hostname.toLowerCase();
-  const pathname = new URL(url).pathname.toLowerCase();
+  let hostname: string;
+  let pathname: string;
+  try {
+    const parsed = new URL(url);
+    hostname = parsed.hostname.toLowerCase();
+    pathname = parsed.pathname.toLowerCase();
+  } catch {
+    return 'article';
+  }
 
   // Video platforms
   if (
@@ -91,7 +98,7 @@ export function formatRelativeTime(timestamp: number): string {
  * Format reading time into a friendly string
  */
 export function formatReadTime(minutes?: number): string {
-  if (!minutes) return '';
+  if (minutes === undefined || minutes === null) return '';
   if (minutes < 1) return '< 1 min';
   if (minutes === 1) return '1 min read';
   return `${minutes} min read`;

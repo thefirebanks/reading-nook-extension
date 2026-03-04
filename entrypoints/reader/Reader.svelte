@@ -7,6 +7,8 @@
   let elapsed = $state(0);
   let timerInterval: ReturnType<typeof setInterval> | null = null;
   let showToolbar = $state(true);
+  let iframeLoading = $state(true);
+  let iframeError = $state(false);
 
   // Start reading timer
   function startTimer() {
@@ -22,13 +24,18 @@
     }
   }
 
+  import { onDestroy } from 'svelte';
+  import { sendMessage } from '../../lib/messaging';
+
   startTimer();
 
-  let formattedTime = $derived(() => {
-    const mins = Math.floor(elapsed / 60);
-    const secs = elapsed % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  onDestroy(() => {
+    stopTimer();
   });
+
+  let formattedTime = $derived(
+    `${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`,
+  );
 
   async function handleDone() {
     stopTimer();
@@ -42,15 +49,21 @@
   async function handleClose() {
     stopTimer();
     // Mark as unread again (didn't finish)
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_ITEM',
-      payload: { id: itemId, status: 'unread' },
-    });
+    await sendMessage('UPDATE_ITEM', { id: itemId, status: 'unread' });
     window.close();
   }
 
   function toggleToolbar() {
     showToolbar = !showToolbar;
+  }
+
+  function handleIframeLoad() {
+    iframeLoading = false;
+  }
+
+  function handleIframeError() {
+    iframeLoading = false;
+    iframeError = true;
   }
 </script>
 
@@ -66,7 +79,7 @@
           </svg>
         </span>
         <span class="toolbar-title">Focus Mode</span>
-        <span class="toolbar-timer">{formattedTime()}</span>
+        <span class="toolbar-timer">{formattedTime}</span>
       </div>
       <div class="toolbar-right">
         <button class="toolbar-btn btn-done" onclick={handleDone}>
@@ -91,16 +104,46 @@
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
       </svg>
-      <span>{formattedTime()}</span>
+      <span>{formattedTime}</span>
     </button>
   {/if}
 
   <!-- Content iframe -->
+  {#if iframeLoading}
+    <div class="reader-loading">
+      <div class="reader-spinner"></div>
+      <p class="reader-loading-text">Loading your read...</p>
+    </div>
+  {/if}
+
+  {#if iframeError}
+    <div class="reader-error">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#C4704B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+      <p class="reader-error-title">This page can't be loaded in focus mode</p>
+      <p class="reader-error-hint">Some sites block embedding. You can still read it directly.</p>
+      <a class="reader-error-link" href={targetUrl} target="_blank" rel="noopener">
+        Open in a new tab
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </a>
+    </div>
+  {/if}
+
   <iframe
     src={targetUrl}
     class="reader-frame"
+    class:reader-frame-hidden={iframeError}
     title="Reading content"
     sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+    onload={handleIframeLoad}
+    onerror={handleIframeError}
   ></iframe>
 </div>
 
@@ -126,9 +169,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 16px;
-    background: #FFF8F0;
-    border-bottom: 1px solid rgba(61, 44, 30, 0.06);
-    box-shadow: 0 2px 8px rgba(61, 44, 30, 0.04);
+    background: var(--rn-bg);
+    border-bottom: 1px solid var(--rn-border);
+    box-shadow: 0 2px 8px var(--rn-shadow);
     z-index: 10;
     flex-shrink: 0;
     animation: toolbarSlideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -154,23 +197,23 @@
   .toolbar-logo {
     display: flex;
     align-items: center;
-    color: #C4704B;
+    color: var(--rn-accent);
   }
 
   .toolbar-title {
     font-size: 13px;
     font-weight: 600;
-    color: #3D2C1E;
+    color: var(--rn-text);
     letter-spacing: -0.01em;
   }
 
   .toolbar-timer {
     font-size: 13px;
     font-weight: 500;
-    color: #8B7355;
+    color: var(--rn-text-secondary);
     font-variant-numeric: tabular-nums;
     padding: 3px 10px;
-    background: rgba(61, 44, 30, 0.04);
+    background: var(--rn-bg-secondary);
     border-radius: 20px;
   }
 
@@ -195,7 +238,7 @@
   }
 
   .btn-done {
-    background: #7B9E6B;
+    background: var(--rn-success);
     color: white;
   }
 
@@ -206,8 +249,8 @@
   }
 
   .btn-close {
-    background: rgba(61, 44, 30, 0.05);
-    color: #8B7355;
+    background: var(--rn-bg-secondary);
+    color: var(--rn-text-secondary);
   }
 
   .btn-close:hover {
@@ -216,14 +259,14 @@
 
   .btn-hide {
     background: transparent;
-    color: #B8A48E;
+    color: var(--rn-text-muted);
     padding: 6px;
     border-radius: 6px;
   }
 
   .btn-hide:hover {
-    color: #8B7355;
-    background: rgba(61, 44, 30, 0.04);
+    color: var(--rn-text-secondary);
+    background: var(--rn-bg-secondary);
   }
 
   /* ─── Show button (when toolbar hidden) ────────────────────── */
@@ -236,13 +279,13 @@
     align-items: center;
     gap: 6px;
     padding: 7px 14px;
-    background: #FFF8F0;
+    background: var(--rn-bg);
     border: none;
     border-radius: 50px;
-    box-shadow: 0 2px 12px rgba(61, 44, 30, 0.1);
+    box-shadow: 0 2px 12px var(--rn-shadow-hover);
     font-size: 12px;
     font-weight: 500;
-    color: #3D2C1E;
+    color: var(--rn-text);
     cursor: pointer;
     z-index: 10;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -276,5 +319,89 @@
     width: 100%;
     border: none;
     background: white;
+  }
+
+  .reader-frame-hidden {
+    display: none;
+  }
+
+  /* ─── Loading State ───────────────────────────────────────── */
+
+  .reader-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 14px;
+    background: var(--rn-bg);
+  }
+
+  .reader-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--rn-border);
+    border-top-color: var(--rn-accent);
+    border-radius: 50%;
+    animation: readerSpin 0.7s linear infinite;
+  }
+
+  @keyframes readerSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  .reader-loading-text {
+    font-size: 13px;
+    color: var(--rn-text-secondary);
+    font-weight: 500;
+  }
+
+  /* ─── Error State ─────────────────────────────────────────── */
+
+  .reader-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 10px;
+    background: var(--rn-bg);
+    padding: 32px;
+    text-align: center;
+  }
+
+  .reader-error-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--rn-text);
+    margin-top: 6px;
+  }
+
+  .reader-error-hint {
+    font-size: 13px;
+    color: var(--rn-text-secondary);
+    max-width: 320px;
+    line-height: 1.5;
+  }
+
+  .reader-error-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 8px 18px;
+    background: var(--rn-accent);
+    color: white;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .reader-error-link:hover {
+    background: var(--rn-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(196, 112, 75, 0.3);
   }
 </style>
