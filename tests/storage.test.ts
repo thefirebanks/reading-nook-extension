@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { ReadingItem, UserStats, UserSettings } from '../lib/types';
 
 // ─── Mock chrome.storage ────────────────────────────────────────
 
@@ -45,24 +44,7 @@ import {
   getSettings,
   updateSettings,
 } from '../lib/storage';
-
-// ─── Test helpers ───────────────────────────────────────────────
-
-function makeItem(overrides: Partial<ReadingItem> = {}): ReadingItem {
-  return {
-    id: `test-${Math.random().toString(36).slice(2, 9)}`,
-    url: `https://example.com/${Math.random().toString(36).slice(2, 9)}`,
-    title: 'Test Article',
-    description: 'A test article',
-    siteName: 'example.com',
-    contentType: 'article',
-    savedAt: Date.now(),
-    status: 'unread',
-    tags: [],
-    nudgeCount: 0,
-    ...overrides,
-  };
-}
+import { makeItem } from './helpers';
 
 function clearStores() {
   for (const key of Object.keys(localStore)) delete localStore[key];

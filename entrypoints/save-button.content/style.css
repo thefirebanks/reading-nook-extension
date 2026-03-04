@@ -1,16 +1,1 @@
-:root {
-  /* Warm/cozy palette */
-  --rn-bg: #FFF8F0;
-  --rn-bg-hover: #FFF1E3;
-  --rn-text: #3D2C1E;
-  --rn-text-secondary: #8B7355;
-  --rn-accent: #C4704B;
-  --rn-accent-hover: #B5613D;
-  --rn-success: #7B9E6B;
-  --rn-warning: #D4A843;
-  --rn-shadow: rgba(61, 44, 30, 0.12);
-  --rn-border: rgba(61, 44, 30, 0.08);
-  --rn-radius: 12px;
-  --rn-radius-sm: 8px;
-  --rn-font: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
+@import '../../lib/design-tokens.css';

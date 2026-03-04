@@ -6,13 +6,15 @@ import {
   getStaleItems,
   getSettings,
   getStats,
+  updateStats,
   recordRead,
   recordSave,
   updateSettings,
+  batchUpdateItems,
 } from '../../lib/storage';
 import { pickNudgeItems, suggestSessionItems } from '../../lib/categories';
 import { categorize } from '../../lib/categories';
-import { getNudgeMessage } from '../../lib/utils';
+import { generateId, getNudgeMessage } from '../../lib/utils';
 import {
   enableBlocking,
   disableBlocking,
@@ -24,7 +26,7 @@ export default defineBackground(() => {
   // ─── Focus mode state tracking ─────────────────────────────────
 
   let focusModeWindowId: number | null = null;
-  let focusModeBlockedDomainCount = 0;
+  let focusModeItemId: string | null = null;
 
   // ─── Message handling ──────────────────────────────────────────
 
@@ -93,6 +95,9 @@ export default defineBackground(() => {
     // Clean up any leftover blocking rules from a previous session
     clearAllBlockingRules();
 
+    // Reset any items stuck in "reading" status (e.g., from a crash or popup close)
+    resetStuckReadingItems();
+
     chrome.contextMenus?.create({
       id: 'save-to-nook',
       title: 'Save to Reading Nook',
@@ -112,7 +117,7 @@ export default defineBackground(() => {
         });
         if (metadata) {
           const item: ReadingItem = {
-            id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            id: generateId(),
             ...metadata,
             status: 'unread',
             tags: [],
@@ -125,12 +130,18 @@ export default defineBackground(() => {
         }
       } catch {
         // Fallback: save with minimal metadata
+        let siteName: string;
+        try {
+          siteName = new URL(url).hostname.replace(/^www\./, '');
+        } catch {
+          siteName = 'unknown';
+        }
         const item: ReadingItem = {
-          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          id: generateId(),
           url,
           title: tab.title || url,
           description: '',
-          siteName: new URL(url).hostname.replace(/^www\./, ''),
+          siteName,
           contentType: 'article',
           status: 'unread',
           tags: [],
@@ -150,9 +161,11 @@ export default defineBackground(() => {
     if (windowId === focusModeWindowId) {
       focusModeWindowId = null;
       // Disable distraction blocking when focus mode window closes
-      if (focusModeBlockedDomainCount > 0) {
-        await disableBlocking(focusModeBlockedDomainCount);
-        focusModeBlockedDomainCount = 0;
+      await disableBlocking();
+      // Reset item from 'reading' back to 'unread' (user closed without finishing)
+      if (focusModeItemId) {
+        await updateItem(focusModeItemId, { status: 'unread' });
+        focusModeItemId = null;
       }
     }
   });
@@ -160,10 +173,12 @@ export default defineBackground(() => {
 
 // ─── Message Handler ──────────────────────────────────────────────
 
-async function handleMessage(message: { type: string; payload?: any }) {
+async function handleMessage(message: { type: string; payload?: unknown }) {
   switch (message.type) {
     case 'SAVE_PAGE': {
-      const item = message.payload as ReadingItem;
+      const payload = message.payload as ReadingItem | undefined;
+      if (!payload?.url) return { error: 'Missing payload for SAVE_PAGE' };
+      const item = { ...payload };
       item.category = categorize(item);
       await saveItem(item);
       await recordSave();
@@ -171,8 +186,13 @@ async function handleMessage(message: { type: string; payload?: any }) {
     }
 
     case 'CHECK_SAVED': {
+      const checkPayload = message.payload as { url?: string } | undefined;
+      if (!checkPayload?.url) return { saved: false };
       const items = await getItems();
-      const saved = items.some((i) => i.url === message.payload?.url);
+      // Only report as saved if the item is in an active state (not archived)
+      const saved = items.some(
+        (i) => i.url === checkPayload.url && i.status !== 'archived',
+      );
       return { saved };
     }
 
@@ -182,9 +202,9 @@ async function handleMessage(message: { type: string; payload?: any }) {
     }
 
     case 'UPDATE_ITEM': {
-      const { id, ...updates } = message.payload as Partial<ReadingItem> & {
-        id: string;
-      };
+      const updatePayload = message.payload as (Partial<ReadingItem> & { id: string }) | undefined;
+      if (!updatePayload?.id) return { error: 'Missing item ID for UPDATE_ITEM' };
+      const { id, ...updates } = updatePayload;
       await updateItem(id, updates);
       if (updates.status === 'read') {
         await recordRead();
@@ -193,13 +213,17 @@ async function handleMessage(message: { type: string; payload?: any }) {
     }
 
     case 'DELETE_ITEM': {
-      await deleteItem(message.payload.id);
+      const deletePayload = message.payload as { id?: string } | undefined;
+      if (!deletePayload?.id) return { error: 'Missing item ID for DELETE_ITEM' };
+      await deleteItem(deletePayload.id);
       return { success: true };
     }
 
     case 'OPEN_FOCUS_MODE': {
+      const focusPayload = message.payload as { id?: string } | undefined;
+      if (!focusPayload?.id) return { error: 'Missing item ID for OPEN_FOCUS_MODE' };
       const items = await getItems();
-      const item = items.find((i) => i.id === message.payload.id);
+      const item = items.find((i) => i.id === focusPayload.id);
       if (item) {
         await openFocusMode(item);
       }
@@ -227,7 +251,9 @@ async function handleMessage(message: { type: string; payload?: any }) {
     }
 
     case 'UPDATE_SETTINGS': {
-      await updateSettings(message.payload);
+      const settingsPayload = message.payload as Partial<import('../../lib/types').UserSettings> | undefined;
+      if (!settingsPayload) return { error: 'Missing payload for UPDATE_SETTINGS' };
+      await updateSettings(settingsPayload);
       return { success: true };
     }
 
@@ -246,7 +272,6 @@ async function openFocusMode(item: ReadingItem) {
   const settings = await getSettings();
   if (settings.focusModeEnabled && settings.focusModeBlockList.length > 0) {
     await enableBlocking(settings.focusModeBlockList);
-    focusModeBlockedDomainCount = settings.focusModeBlockList.length;
   }
 
   // Open in a new maximized window
@@ -260,8 +285,9 @@ async function openFocusMode(item: ReadingItem) {
     state: 'maximized',
   });
 
-  // Track the focus mode window ID for cleanup on close
+  // Track the focus mode window ID and item ID for cleanup on close
   focusModeWindowId = win.id ?? null;
+  focusModeItemId = item.id;
 }
 
 // ─── Nudge Notifications ────────────────────────────────────────
@@ -288,13 +314,16 @@ async function handleNudgeCheck() {
     const suggestions = pickNudgeItems(oldEnough);
     await showNudgeNotification(suggestions);
 
-    // Update nudge count
-    for (const item of suggestions) {
-      await updateItem(item.id, {
-        nudgeCount: item.nudgeCount + 1,
-        lastNudgedAt: Date.now(),
-      });
-    }
+    // Update nudge count for all suggested items in a single batch
+    await batchUpdateItems(
+      suggestions.map((item) => ({
+        id: item.id,
+        changes: {
+          nudgeCount: item.nudgeCount + 1,
+          lastNudgedAt: Date.now(),
+        },
+      })),
+    );
   }
 }
 
@@ -330,18 +359,25 @@ async function handleDecayCheck() {
       Date.now() - i.savedAt > settings.decayDays * 24 * 60 * 60 * 1000,
   );
 
-  // Auto-archive very old items
-  for (const item of staleItems) {
-    if (
+  // Auto-archive very old items in a single batch
+  const toArchive = staleItems.filter(
+    (item) =>
       Date.now() - item.savedAt >
-      settings.autoArchiveDays * 24 * 60 * 60 * 1000
-    ) {
-      await updateItem(item.id, { status: 'archived' });
-    }
+      settings.autoArchiveDays * 24 * 60 * 60 * 1000,
+  );
+  const autoArchivedIds = new Set(toArchive.map((i) => i.id));
+
+  if (toArchive.length > 0) {
+    await batchUpdateItems(
+      toArchive.map((item) => ({
+        id: item.id,
+        changes: { status: 'archived' as const },
+      })),
+    );
   }
 
-  // Notify about stale items that aren't auto-archived yet
-  const flagged = staleItems.filter((i) => i.status === 'unread');
+  // Notify about stale items that weren't auto-archived
+  const flagged = staleItems.filter((i) => !autoArchivedIds.has(i.id));
   if (flagged.length > 0) {
     await chrome.notifications.create('decay-check', {
       type: 'basic',
@@ -383,8 +419,7 @@ async function handleWeeklyDigest() {
 
   // Update stats with this week's summary
   const history = [...(stats.weeklyHistory || []), weekSummary].slice(-12); // keep 12 weeks
-  const { updateStats: doUpdate } = await import('../../lib/storage');
-  await doUpdate({ weeklyHistory: history });
+  await updateStats({ weeklyHistory: history });
 
   // Show notification
   if (savedThisWeek > 0 || readThisWeek > 0) {
@@ -394,5 +429,21 @@ async function handleWeeklyDigest() {
       title: 'Your weekly reading digest',
       message: `You saved ${savedThisWeek} and read ${readThisWeek} item${readThisWeek !== 1 ? 's' : ''} this week.${stats.currentStreak > 1 ? ` ${stats.currentStreak}-day streak!` : ''}`,
     });
+  }
+}
+
+// ─── Stuck Reading Items Cleanup ─────────────────────────────────
+
+async function resetStuckReadingItems(): Promise<void> {
+  const items = await getItems();
+  const stuck = items.filter((i) => i.status === 'reading');
+  if (stuck.length > 0) {
+    await batchUpdateItems(
+      stuck.map((item) => ({
+        id: item.id,
+        changes: { status: 'unread' as const },
+      })),
+    );
+    console.log(`Reading Nook: reset ${stuck.length} item(s) stuck in "reading" status`);
   }
 }

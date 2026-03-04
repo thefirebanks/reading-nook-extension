@@ -1,4 +1,4 @@
-import type { ReadingItem, ContentType } from './types';
+import type { ReadingItem } from './types';
 
 /**
  * Auto-categorize a reading item based on URL, content type, and title
@@ -122,22 +122,4 @@ export function pickNudgeItems(items: ReadingItem[]): ReadingItem[] {
     });
 
   return unread.slice(0, Math.min(3, unread.length));
-}
-
-/**
- * Get content type emoji for playful display
- */
-export function contentTypeEmoji(type: ContentType): string {
-  switch (type) {
-    case 'article':
-      return '\uD83D\uDCDD';
-    case 'video':
-      return '\uD83C\uDFAC';
-    case 'tweet':
-      return '\uD83D\uDCAC';
-    case 'paper':
-      return '\uD83C\uDF93';
-    case 'other':
-      return '\uD83D\uDD16';
-  }
 }

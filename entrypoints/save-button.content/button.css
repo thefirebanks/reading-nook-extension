@@ -137,6 +137,16 @@
   color: var(--rn-success);
 }
 
+.rn-toast-error {
+  border-left: 3px solid var(--rn-accent);
+}
+
+.rn-toast-icon-error {
+  display: flex;
+  align-items: center;
+  color: var(--rn-accent);
+}
+
 /* ─── Animations ───────────────────────────────────────────────── */
 
 @keyframes rn-spin {

@@ -8,6 +8,9 @@
   let showConfirm = $state(false);
   let toastExiting = $state(false);
   let hovered = $state(false);
+  let errorMessage = $state('');
+  let showError = $state(false);
+  let errorExiting = $state(false);
 
   async function handleSave() {
     if (saved || saving) return;
@@ -42,6 +45,17 @@
       }, 2200);
     } catch (err) {
       console.error('Reading Nook: Failed to save page', err);
+      errorMessage = 'Couldn\u2019t save \u2014 try again?';
+      showError = true;
+      errorExiting = false;
+
+      setTimeout(() => {
+        errorExiting = true;
+        setTimeout(() => {
+          showError = false;
+          errorExiting = false;
+        }, 300);
+      }, 3000);
     } finally {
       saving = false;
     }
@@ -75,6 +89,20 @@
         </svg>
       </span>
       <span class="rn-toast-text">{confirmMessage}</span>
+    </div>
+  {/if}
+
+  <!-- Error toast -->
+  {#if showError}
+    <div class="rn-toast rn-toast-error" class:rn-toast-visible={showError && !errorExiting} class:rn-toast-exit={errorExiting}>
+      <span class="rn-toast-icon-error" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+      </span>
+      <span class="rn-toast-text">{errorMessage}</span>
     </div>
   {/if}
 

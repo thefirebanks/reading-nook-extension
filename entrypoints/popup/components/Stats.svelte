@@ -15,7 +15,8 @@
     stats ? getStreakMessage(stats.currentStreak) : '',
   );
 
-  let categories = $derived(groupByCategory(items.filter((i) => i.status === 'unread')));
+  let unreadItems = $derived(items.filter((i) => i.status === 'unread'));
+  let categories = $derived(groupByCategory(unreadItems));
 
   let latestWeek = $derived(
     stats?.weeklyHistory?.length
@@ -108,7 +109,7 @@
               <div class="category-bar-wrap">
                 <div
                   class="category-bar"
-                  style="width: {Math.min(100, (catItems.length / items.length) * 100 * 3)}%"
+                  style="width: {Math.min(100, (catItems.length / unreadItems.length) * 100)}%"
                 ></div>
               </div>
               <span class="category-count">{catItems.length}</span>

@@ -12,12 +12,13 @@
   let submitted = $state(false);
   let submitting = $state(false);
 
-  let formattedReadingTime = $derived(() => {
-    const mins = Math.floor(readingTime / 60);
-    if (mins < 1) return 'Less than a minute';
-    if (mins === 1) return '1 minute';
-    return `${mins} minutes`;
-  });
+  const readingMins = Math.floor(readingTime / 60);
+  const formattedReadingTime =
+    readingMins < 1
+      ? 'Less than a minute'
+      : readingMins === 1
+        ? '1 minute'
+        : `${readingMins} minutes`;
 
   let canSubmit = $derived(takeaway.trim().length > 0 && rating !== '');
 
@@ -53,15 +54,20 @@
   }
 
   async function handleSkip() {
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_ITEM',
-      payload: {
-        id: itemId,
-        status: 'read',
-        readAt: Date.now(),
-      },
-    });
-    window.close();
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'UPDATE_ITEM',
+        payload: {
+          id: itemId,
+          status: 'read',
+          readAt: Date.now(),
+        },
+      });
+      window.close();
+    } catch (err) {
+      console.error('Failed to skip reflection:', err);
+      window.close();
+    }
   }
 
   function handleDone() {
@@ -100,7 +106,7 @@
         </div>
         <h1 class="form-title">How was that read?</h1>
         <p class="form-subtitle">
-          You spent {formattedReadingTime()} reading. Let's capture what you got from it.
+          You spent {formattedReadingTime} reading. Let's capture what you got from it.
         </p>
       </div>
 
@@ -214,9 +220,9 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    background: #FFF8F0;
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    color: #3D2C1E;
+    background: var(--rn-bg);
+    font-family: var(--rn-font);
+    color: var(--rn-text);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -255,17 +261,17 @@
   }
 
   .success-title {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: var(--rn-font-display);
     font-size: 28px;
     font-weight: 400;
     margin-bottom: 8px;
-    color: #3D2C1E;
+    color: var(--rn-text);
     animation: textFadeUp 0.4s ease 0.15s both;
   }
 
   .success-text {
     font-size: 15px;
-    color: #8B7355;
+    color: var(--rn-text-secondary);
     margin-bottom: 32px;
     line-height: 1.6;
     animation: textFadeUp 0.4s ease 0.25s both;
@@ -301,7 +307,7 @@
   }
 
   .form-title {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: var(--rn-font-display);
     font-size: 24px;
     font-weight: 400;
     margin-bottom: 6px;
@@ -310,7 +316,7 @@
 
   .form-subtitle {
     font-size: 14px;
-    color: #8B7355;
+    color: var(--rn-text-secondary);
     line-height: 1.5;
   }
 
@@ -325,36 +331,36 @@
   .field-label {
     font-size: 14px;
     font-weight: 600;
-    color: #3D2C1E;
+    color: var(--rn-text);
   }
 
   .field-hint {
     font-weight: 400;
-    color: #B8A48E;
+    color: var(--rn-text-muted);
   }
 
   .input,
   .textarea {
     padding: 10px 14px;
     background: white;
-    border: 1.5px solid rgba(61, 44, 30, 0.1);
+    border: 1.5px solid var(--rn-border);
     border-radius: 10px;
     font-family: inherit;
     font-size: 14px;
-    color: #3D2C1E;
+    color: var(--rn-text);
     transition: all 0.25s ease;
     outline: none;
   }
 
   .input:focus,
   .textarea:focus {
-    border-color: #C4704B;
+    border-color: var(--rn-accent);
     box-shadow: 0 0 0 3px rgba(196, 112, 75, 0.1);
   }
 
   .input::placeholder,
   .textarea::placeholder {
-    color: #B8A48E;
+    color: var(--rn-text-muted);
   }
 
   .textarea {
@@ -366,7 +372,7 @@
   .char-count {
     align-self: flex-end;
     font-size: 11px;
-    color: #B8A48E;
+    color: var(--rn-text-muted);
   }
 
   /* ─── Rating Buttons ───────────────────────────────────────── */
@@ -393,13 +399,13 @@
 
   .rating-btn:hover {
     border-color: rgba(61, 44, 30, 0.14);
-    background: #FFF1E3;
+    background: var(--rn-bg-secondary);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(61, 44, 30, 0.08);
+    box-shadow: 0 4px 12px var(--rn-shadow);
   }
 
   .rating-btn.active {
-    border-color: #C4704B;
+    border-color: var(--rn-accent);
     background: rgba(196, 112, 75, 0.06);
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 4px 16px rgba(196, 112, 75, 0.15);
@@ -408,7 +414,7 @@
   .rating-icon {
     display: flex;
     align-items: center;
-    color: #B8A48E;
+    color: var(--rn-text-muted);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
@@ -421,26 +427,26 @@
   }
 
   .rating-btn.active .rating-icon-good {
-    color: #7B9E6B;
+    color: var(--rn-success);
   }
 
   .rating-btn.active .rating-icon-meh {
-    color: #D4A843;
+    color: var(--rn-warning);
   }
 
   .rating-btn.active .rating-icon-bad {
-    color: #C9544D;
+    color: var(--rn-danger);
   }
 
   .rating-text {
     font-size: 12px;
     font-weight: 500;
-    color: #8B7355;
+    color: var(--rn-text-secondary);
     transition: all 0.2s ease;
   }
 
   .rating-btn.active .rating-text {
-    color: #C4704B;
+    color: var(--rn-accent);
     font-weight: 600;
   }
 
@@ -459,21 +465,21 @@
   }
 
   .checkbox-label:hover {
-    background: #FFF1E3;
+    background: var(--rn-bg-secondary);
     border-color: rgba(61, 44, 30, 0.12);
   }
 
   .checkbox {
     width: 18px;
     height: 18px;
-    accent-color: #C4704B;
+    accent-color: var(--rn-accent);
     cursor: pointer;
     border-radius: 4px;
   }
 
   .checkbox-text {
     font-size: 14px;
-    color: #3D2C1E;
+    color: var(--rn-text);
   }
 
   /* ─── Actions ──────────────────────────────────────────────── */
@@ -502,12 +508,12 @@
   }
 
   .btn-primary {
-    background: #C4704B;
+    background: var(--rn-accent);
     color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #B5613D;
+    background: var(--rn-accent-hover);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(196, 112, 75, 0.25);
   }
@@ -517,8 +523,8 @@
   }
 
   .btn-secondary {
-    background: rgba(61, 44, 30, 0.05);
-    color: #8B7355;
+    background: var(--rn-bg-secondary);
+    color: var(--rn-text-secondary);
   }
 
   .btn-secondary:hover {

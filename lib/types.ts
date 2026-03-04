@@ -67,6 +67,8 @@ export interface UserSettings {
 
 export type MessageType =
   | 'SAVE_PAGE'
+  | 'CHECK_SAVED'
+  | 'EXTRACT_METADATA'
   | 'GET_ITEMS'
   | 'UPDATE_ITEM'
   | 'DELETE_ITEM'
@@ -79,16 +81,6 @@ export type MessageType =
 export interface Message {
   type: MessageType;
   payload?: unknown;
-}
-
-export interface SavePagePayload {
-  url: string;
-  title: string;
-  description: string;
-  thumbnail?: string;
-  siteName: string;
-  contentType: ContentType;
-  estimatedReadTime?: number;
 }
 
 // ─── Page Metadata (extracted by content script) ────────────────

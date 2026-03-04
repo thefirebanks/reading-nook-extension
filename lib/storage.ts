@@ -49,8 +49,11 @@ export async function saveItem(item: ReadingItem): Promise<void> {
   // Avoid duplicates by URL
   const exists = items.find((i) => i.url === item.url);
   if (exists) {
-    // Update existing item instead of creating duplicate
-    const updated = items.map((i) => (i.url === item.url ? { ...i, ...item } : i));
+    // If the existing item was archived, restore it to unread
+    const restoredStatus = exists.status === 'archived' ? 'unread' : exists.status;
+    const updated = items.map((i) =>
+      i.url === item.url ? { ...i, ...item, status: restoredStatus } : i,
+    );
     await chrome.storage.local.set({ [ITEMS_KEY]: updated });
   } else {
     items.unshift(item); // newest first
@@ -73,6 +76,19 @@ export async function deleteItem(id: string): Promise<void> {
   const items = await getItems();
   const filtered = items.filter((item) => item.id !== id);
   await chrome.storage.local.set({ [ITEMS_KEY]: filtered });
+}
+
+export async function batchUpdateItems(
+  updates: Array<{ id: string; changes: Partial<ReadingItem> }>,
+): Promise<void> {
+  if (updates.length === 0) return;
+  const items = await getItems();
+  const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
+  const updated = items.map((item) => {
+    const changes = updateMap.get(item.id);
+    return changes ? { ...item, ...changes } : item;
+  });
+  await chrome.storage.local.set({ [ITEMS_KEY]: updated });
 }
 
 export async function getItemsByStatus(

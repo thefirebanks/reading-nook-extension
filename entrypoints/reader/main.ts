@@ -1,3 +1,4 @@
+import '../../lib/design-tokens.css';
 import { mount } from 'svelte';
 import Reader from './Reader.svelte';
 
