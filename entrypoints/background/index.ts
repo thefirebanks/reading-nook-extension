@@ -22,12 +22,11 @@ import {
 } from '../../lib/blocking';
 import type { ReadingItem, UserStats, WeekSummary } from '../../lib/types';
 
+// Shared background state for the active focus-mode window.
+let focusModeWindowId: number | null = null;
+let focusModeItemId: string | null = null;
+
 export default defineBackground(() => {
-  // ─── Focus mode state tracking ─────────────────────────────────
-
-  let focusModeWindowId: number | null = null;
-  let focusModeItemId: string | null = null;
-
   // ─── Message handling ──────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
