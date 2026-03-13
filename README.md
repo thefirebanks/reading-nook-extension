@@ -5,13 +5,11 @@ A cozy Chrome extension for saving articles and pages to read later — with gen
 ## Install (no coding required)
 
 1. Go to the [Releases](../../releases) page and download the latest `.zip` file
-2. Unzip it — you'll get a folder called `chrome-mv3/`
+2. Unzip it into a folder (for example, `reading-nook-extension-0.1.0-chrome/`)
 3. Open Chrome and go to `chrome://extensions`
 4. Turn on **Developer mode** (toggle in the top-right corner)
-5. Click **Load unpacked** and select the `chrome-mv3/` folder
+5. Click **Load unpacked** and select the extracted folder that contains `manifest.json` at the top level
 6. Done — you'll see the Reading Nook icon in your toolbar
-
-> No releases yet? You can build from source — see [Build from source](#build-from-source) below.
 
 ## How it works
 
@@ -69,6 +67,10 @@ bun run dev
 ```
 
 Starts WXT dev server with hot reload. Load from `.output/chrome-mv3-dev/` in Chrome.
+
+If you see `WebSocket connection to 'ws://localhost:3000/' failed`, the dev build is loaded but the dev server is not running. Either:
+- run `bun run dev`, or
+- load the production build from `.output/chrome-mv3/` instead.
 
 ### Tests
 
