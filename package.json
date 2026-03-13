@@ -11,6 +11,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "screenshots:readme": "bun run scripts/capture-readme-screenshots.ts",
     "postinstall": "wxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",

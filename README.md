@@ -29,6 +29,28 @@ A cozy Chrome extension for saving articles and pages to read later — with gen
 - **Nudge Reminders** — Gentle Chrome notifications when items pile up
 - **Session Mode** — Start a curated reading session from your queue
 
+## Screenshots
+
+### Save button on any page
+
+![Reading Nook save button](docs/screenshots/save-button.png)
+
+### Popup queue
+
+![Reading Nook popup queue tab](docs/screenshots/popup-queue.png)
+
+### Popup stats
+
+![Reading Nook popup stats tab](docs/screenshots/popup-stats.png)
+
+### Focus mode
+
+![Reading Nook focus mode](docs/screenshots/focus-mode.png)
+
+### Reflection form
+
+![Reading Nook reflection form](docs/screenshots/reflection.png)
+
 ## Build from source
 
 ### Prerequisites
@@ -59,6 +81,12 @@ bun run zip
 ```
 
 This creates a distributable `.zip` in `.output/`.
+
+To regenerate README screenshots:
+
+```bash
+bun run screenshots:readme
+```
 
 ### Development
 
